@@ -60,14 +60,15 @@ function getBlueprintPrefixes() {
 
 var Transformer = {
 
-  getSwagger: function getSwagger(sails, pkg, jsDoc) {
+  getSwagger: function getSwagger(sails, config, jsDoc) {
+    var pkg = config.pkg;
     return {
       swagger: '2.0',
       info: Transformer.getInfo(pkg),
       host: sails.config.swagger.host,
       tags: Transformer.getTags(sails),
       definitions: Transformer.getDefinitions(sails),
-      paths: Transformer.getPaths(sails, jsDoc)
+      paths: Transformer.getPaths(sails, config, jsDoc)
     };
   },
 
@@ -130,7 +131,7 @@ var Transformer = {
    * http://swagger.io/specification/#pathsObject
    * http://swagger.io/specification/#pathItemObject
    */
-  getPaths: function getPaths(sails, jsDoc) {
+  getPaths: function getPaths(sails, config, jsDoc) {
     var routes = sails.router._privateRouter.routes;
     var pathGroups = _lodash2['default'].chain(routes).values().flatten().unique(function (route) {
       return route.path + route.method + JSON.stringify(route.keys);
@@ -143,7 +144,7 @@ var Transformer = {
     }, []);
 
     return _lodash2['default'].mapValues(pathGroups, function (pathGroup) {
-      return Transformer.getPathItem(sails, pathGroup, jsDoc);
+      return Transformer.getPathItem(sails, pathGroup, config, jsDoc);
     });
   },
 
@@ -190,33 +191,51 @@ var Transformer = {
   /**
    * http://swagger.io/specification/#pathItemObject
    */
-  getPathItem: function getPathItem(sails, pathGroup, jsDoc) {
+  getPathItem: function getPathItem(sails, pathGroup, config, jsDoc) {
     var methodGroups = _lodash2['default'].chain(pathGroup).indexBy('method').pick(['get', 'post', 'put', 'head', 'options', 'patch', 'delete']).value();
 
     return _lodash2['default'].mapValues(methodGroups, function (methodGroup, method) {
-      return Transformer.getOperation(sails, methodGroup, method, jsDoc);
+      return Transformer.getOperation(sails, methodGroup, method, config, jsDoc);
     });
   },
 
   /**
    * http://swagger.io/specification/#operationObject
    */
-  getOperation: function getOperation(sails, methodGroup, method, jsDoc) {
+  getOperation: function getOperation(sails, methodGroup, method, config, jsDoc) {
     return {
       summary: Transformer.getPathSummary(sails, methodGroup, jsDoc) || methodMap[method],
       consumes: ['application/json'],
       produces: ['application/json'],
-      description: Transformer.getPathDescription(sails, methodGroup, jsDoc),
+      externalDocs: Transformer.getExternalDocs(sails, methodGroup, jsDoc),
+      description: Transformer.getPathDescription(sails, methodGroup, config, jsDoc),
       parameters: Transformer.getParameters(sails, methodGroup),
       responses: Transformer.getResponses(sails, methodGroup),
       tags: Transformer.getPathTags(sails, methodGroup)
     };
   },
 
-  getPathDescription: function getPathDescription(sails, methodGroup, jsDoc) {
+  getPathDescription: function getPathDescription(sails, methodGroup, config, jsDoc) {
     var doc = Transformer.getJsDocFromRoute(sails, methodGroup, jsDoc);
     if (!doc) return;
-    return doc.description;
+    var desc = doc.description;
+    /*
+     * In Swagger-UI, the externalDocs for operation is not displayed properly.
+     * If appendExtDocsToDesc is set to true, append the external docs to
+     */
+    if (config.jsdoc.appendExtDocsToDesc && _lodash2['default'].isArray(doc.see) && doc.see.length > 0) {
+      desc += ' [External Document](' + doc.see[0] + ')';
+    }
+    return desc;
+  },
+
+  getExternalDocs: function getExternalDocs(sails, methodGroup, jsDoc) {
+    var doc = Transformer.getJsDocFromRoute(sails, methodGroup, jsDoc);
+    if (!doc || !_lodash2['default'].isArray(doc.see)) return;
+    return {
+      description: 'Find more here',
+      url: doc.see[0]
+    };
   },
 
   getPathSummary: function getPathSummary(sails, methodGroup, jsDoc) {
@@ -347,7 +366,7 @@ var Transformer = {
         parameters.push({
           name: modelIdentity,
           'in': 'body',
-          required: true,
+          required: false,
           schema: {
             $ref: Transformer.getDefinitionReferenceFromPath(sails, path)
           }

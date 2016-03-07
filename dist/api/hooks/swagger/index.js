@@ -59,6 +59,7 @@ var Swagger = (function (_Marlinspike) {
             url: 'http://localhost:8080/'
           },
           jsdoc: {
+            appendExtDocsToDesc: false,
             path: ''
           }
         },
@@ -87,7 +88,7 @@ var Swagger = (function (_Marlinspike) {
       var apiJsDoc = null;
 
       this.sails.after('lifted', function () {
-        hook.doc = _libXfmr2['default'].getSwagger(_this.sails, _this.sails.config.swagger.pkg, apiJsDoc);
+        hook.doc = _libXfmr2['default'].getSwagger(_this.sails, _this.sails.config.swagger, apiJsDoc);
       });
 
       if (this.sails.config.swagger.jsdoc.path) {

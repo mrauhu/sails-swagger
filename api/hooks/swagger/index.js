@@ -20,6 +20,7 @@ class Swagger extends Marlinspike {
           url: 'http://localhost:8080/'
         },
         jsdoc: {
+          appendExtDocsToDesc: false,
           path: ''
         }
       },
@@ -41,7 +42,7 @@ class Swagger extends Marlinspike {
     let apiJsDoc = null;
 
     this.sails.after('lifted', () => {
-      hook.doc = xfmr.getSwagger(this.sails, this.sails.config.swagger.pkg, apiJsDoc)
+      hook.doc = xfmr.getSwagger(this.sails, this.sails.config.swagger, apiJsDoc)
     })
 
     if (this.sails.config.swagger.jsdoc.path) {

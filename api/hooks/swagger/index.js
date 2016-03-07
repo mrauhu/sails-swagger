@@ -21,6 +21,7 @@ class Swagger extends Marlinspike {
         },
         jsdoc: {
           appendExtDocsToDesc: false,
+          multiLine: true,
           path: ''
         }
       },

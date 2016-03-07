@@ -96,11 +96,11 @@ var Transformer = {
     return _lodash2['default'].map(_lodash2['default'].pluck(sails.controllers, 'globalId'), function (tagName) {
       return {
         name: tagName
-        //description: `${tagName} Controller`
       };
     });
   },
 
+  //description: `${tagName} Controller`
   /**
    * http://swagger.io/specification/#definitionsObject
    */
@@ -250,7 +250,10 @@ var Transformer = {
      * If appendExtDocsToDesc is set to true, append the external docs to
      */
     if (config.jsdoc.appendExtDocsToDesc && _lodash2['default'].isArray(doc.see) && doc.see.length > 0) {
-      desc += ' [External Document](' + doc.see[0] + ')';
+      desc += '\n[External Document](' + doc.see[0] + ')';
+    }
+    if (config.jsdoc.multiLine) {
+      desc = desc.replace(new RegExp('\r\n?|\n', 'g'), '<br>');
     }
     return desc;
   },
@@ -346,12 +349,12 @@ var Transformer = {
 
     if (!controller) return;
 
-    var _Controller$exec = /(.+)Controller/.exec(controller);
+    var _Controller$$exec = /^(.+?)(Controller)?$/.exec(controller);
 
-    var _Controller$exec2 = _slicedToArray(_Controller$exec, 2);
+    var _Controller$$exec2 = _slicedToArray(_Controller$$exec, 2);
 
-    var $ = _Controller$exec2[0];
-    var name = _Controller$exec2[1];
+    var $ = _Controller$$exec2[0];
+    var name = _Controller$$exec2[1];
 
     return name;
   },

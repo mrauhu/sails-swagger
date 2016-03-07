@@ -60,6 +60,7 @@ var Swagger = (function (_Marlinspike) {
           },
           jsdoc: {
             appendExtDocsToDesc: false,
+            multiLine: true,
             path: ''
           }
         },

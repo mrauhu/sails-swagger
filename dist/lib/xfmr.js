@@ -107,7 +107,7 @@ var Transformer = {
   getDefinitions: function getDefinitions(sails) {
     var definitions = _lodash2['default'].transform(sails.models, function (definitions, model, modelName) {
       definitions[model.identity] = {
-        properties: Transformer.getDefinitionProperties(model.definition)
+        properties: Transformer.getDefinitionProperties(model.attributes)
       };
     });
 
@@ -121,6 +121,9 @@ var Transformer = {
     return _lodash2['default'].mapValues(definition, function (def, attrName) {
       var property = _lodash2['default'].pick(def, ['type', 'description', 'format', 'model']);
 
+      /*
+       * TODO: Add collection support maybe?
+       */
       return property.model && sails.config.blueprints.populate ? { '$ref': Transformer.generateDefinitionReference(property.model) } : _spec2['default'].getPropertyType(property.type);
     });
   },
@@ -167,8 +170,31 @@ var Transformer = {
     return childModel || parentModel;
   },
 
-  getModelIdentityFromPath: function getModelIdentityFromPath(sails, path) {
-    var model = Transformer.getModelFromPath(sails, path);
+  getModelFromJsDoc: function getModelFromJsDoc(sails, doc, isRequest) {
+    if (!doc.customTags) return;
+    var modelTag = _lodash2['default'].find(doc.customTags, function (tag) {
+      if (isRequest) {
+        return tag.tag === 'request-model';
+      } else {
+        return tag.tag === 'response-model';
+      }
+    });
+    if (!modelTag) return;
+    var modelNameToFind = modelTag.value.toLowerCase();
+    return _lodash2['default'].find(sails.models, function (model, modelName) {
+      return modelName.toLowerCase() === modelNameToFind;
+    });
+  },
+
+  getModelIdentityFromRoute: function getModelIdentityFromRoute(sails, modelGroup, jsDoc, isRequest) {
+    var doc = Transformer.getJsDocFromRoute(sails, modelGroup, jsDoc);
+    var model = null;
+    if (doc) {
+      model = Transformer.getModelFromJsDoc(sails, doc, isRequest);
+    }
+    if (!model) {
+      model = Transformer.getModelFromPath(sails, modelGroup.path);
+    }
     if (model) {
       return model.identity;
     }
@@ -177,10 +203,10 @@ var Transformer = {
   /**
    * http://swagger.io/specification/#definitionsObject
    */
-  getDefinitionReferenceFromPath: function getDefinitionReferenceFromPath(sails, path) {
-    var model = Transformer.getModelFromPath(sails, path);
-    if (model) {
-      return Transformer.generateDefinitionReference(model.identity);
+  getDefinitionReferenceFromRoute: function getDefinitionReferenceFromRoute(sails, methodGroup, jsDoc, isRequest) {
+    var identity = Transformer.getModelIdentityFromRoute(sails, methodGroup, jsDoc, isRequest);
+    if (identity) {
+      return Transformer.generateDefinitionReference(identity);
     }
   },
 
@@ -209,9 +235,9 @@ var Transformer = {
       produces: ['application/json'],
       externalDocs: Transformer.getExternalDocs(sails, methodGroup, jsDoc),
       description: Transformer.getPathDescription(sails, methodGroup, config, jsDoc),
-      parameters: Transformer.getParameters(sails, methodGroup),
-      responses: Transformer.getResponses(sails, methodGroup),
-      tags: Transformer.getPathTags(sails, methodGroup)
+      parameters: Transformer.getParameters(sails, methodGroup, jsDoc),
+      responses: Transformer.getResponses(sails, methodGroup, jsDoc),
+      tags: Transformer.getPathTags(sails, methodGroup, jsDoc)
     };
   },
 
@@ -248,12 +274,19 @@ var Transformer = {
    * A list of tags for API documentation control. Tags can be used for logical
    * grouping of operations by resources or any other qualifier.
    */
-  getPathTags: function getPathTags(sails, methodGroup) {
-    return _lodash2['default'].unique(_lodash2['default'].compact([Transformer.getPathModelTag(sails, methodGroup), Transformer.getPathControllerTag(sails, methodGroup), Transformer.getControllerFromRoute(sails, methodGroup)]));
+  getPathTags: function getPathTags(sails, methodGroup, jsDoc) {
+    return _lodash2['default'].unique(_lodash2['default'].compact([Transformer.getPathModelTag(sails, methodGroup), Transformer.getJsDocModelTag(sails, methodGroup, jsDoc, true), Transformer.getJsDocModelTag(sails, methodGroup, jsDoc, false), Transformer.getPathControllerTag(sails, methodGroup), Transformer.getControllerFromRoute(sails, methodGroup)]));
   },
 
   getPathModelTag: function getPathModelTag(sails, methodGroup) {
     var model = Transformer.getModelFromPath(sails, methodGroup.path);
+    return model && model.globalId;
+  },
+
+  getJsDocModelTag: function getJsDocModelTag(sails, methodGroup, jsDoc, isRequest) {
+    var doc = Transformer.getJsDocFromRoute(sails, methodGroup, jsDoc);
+    if (!doc) return;
+    var model = Transformer.getModelFromJsDoc(sails, doc, isRequest);
     return model && model.globalId;
   },
 
@@ -341,7 +374,7 @@ var Transformer = {
   /**
    * http://swagger.io/specification/#parameterObject
    */
-  getParameters: function getParameters(sails, methodGroup) {
+  getParameters: function getParameters(sails, methodGroup, jsDoc) {
     var method = methodGroup.method;
     var routeKeys = methodGroup.keys;
 
@@ -359,8 +392,7 @@ var Transformer = {
     });
 
     if (canHavePayload) {
-      var path = methodGroup.path;
-      var modelIdentity = Transformer.getModelIdentityFromPath(sails, path);
+      var modelIdentity = Transformer.getModelIdentityFromRoute(sails, methodGroup, jsDoc, true);
 
       if (modelIdentity) {
         parameters.push({
@@ -368,7 +400,7 @@ var Transformer = {
           'in': 'body',
           required: false,
           schema: {
-            $ref: Transformer.getDefinitionReferenceFromPath(sails, path)
+            $ref: Transformer.getDefinitionReferenceFromRoute(sails, methodGroup, jsDoc)
           }
         });
       }
@@ -380,8 +412,8 @@ var Transformer = {
   /**
    * http://swagger.io/specification/#responsesObject
    */
-  getResponses: function getResponses(sails, methodGroup) {
-    var $ref = Transformer.getDefinitionReferenceFromPath(sails, methodGroup.path);
+  getResponses: function getResponses(sails, methodGroup, jsDoc) {
+    var $ref = Transformer.getDefinitionReferenceFromRoute(sails, methodGroup, jsDoc, false);
     var ok = {
       description: 'The requested resource'
     };

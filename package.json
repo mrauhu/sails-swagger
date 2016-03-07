@@ -35,7 +35,10 @@
     "sails-disk": "^0.10.8"
   },
   "dependencies": {
+    "callback-stream": "^1.1.0",
+    "event-stream": "^3.3.2",
     "hoek": "^2.14.0",
+    "jsdoc-parse": "^1.2.7",
     "lodash": "^3.10.1",
     "marlinspike": "^0.12.10",
     "pluralize": "^1.2.1"

@@ -2,6 +2,9 @@ import path from 'path'
 import _ from 'lodash'
 import Marlinspike from 'marlinspike'
 import xfmr from '../../../lib/xfmr'
+import jsdocParse from 'jsdoc-parse'
+import es from 'event-stream'
+import cbStream from 'callback-stream'
 
 class Swagger extends Marlinspike {
 
@@ -15,6 +18,9 @@ class Swagger extends Marlinspike {
         },
         ui: {
           url: 'http://localhost:8080/'
+        },
+        jsdoc: {
+          path: ''
         }
       },
       'routes': {
@@ -32,11 +38,28 @@ class Swagger extends Marlinspike {
 
   initialize (next) {
     let hook = this.sails.hooks.swagger
+    let apiJsDoc = null;
+
     this.sails.after('lifted', () => {
-      hook.doc = xfmr.getSwagger(this.sails, this.sails.config.swagger.pkg)
+      hook.doc = xfmr.getSwagger(this.sails, this.sails.config.swagger.pkg, apiJsDoc)
     })
 
-    next()
+    if (this.sails.config.swagger.jsdoc.path) {
+      var pipeEnd = cbStream(next);
+      jsdocParse({src: this.sails.config.swagger.jsdoc.path})
+          .pipe(es.map(function (jsDoc, cb) {
+            try {
+              apiJsDoc = JSON.parse(jsDoc);
+              cb(null, apiJsDoc);
+            } catch (err) {
+              cb(err)
+            }
+          }))
+          .pipe(pipeEnd)
+    } else {
+      next();
+    }
+
   }
 }
 

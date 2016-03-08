@@ -180,20 +180,42 @@ var Transformer = {
       }
     });
     if (!modelTag) return;
-    var modelNameToFind = modelTag.value.toLowerCase();
+
+    var _$$exec = /^\[?(.+?)]?$/.exec(modelTag.value.toLowerCase());
+
+    var _$$exec2 = _slicedToArray(_$$exec, 2);
+
+    var $ = _$$exec2[0];
+    var modelNameToFind = _$$exec2[1];
+
     return _lodash2['default'].find(sails.models, function (model, modelName) {
       return modelName.toLowerCase() === modelNameToFind;
     });
   },
 
-  getModelIdentityFromRoute: function getModelIdentityFromRoute(sails, modelGroup, jsDoc, isRequest) {
-    var doc = Transformer.getJsDocFromRoute(sails, modelGroup, jsDoc);
+  isModelArray: function isModelArray(sails, methodGroup, jsDoc, isRequest) {
+    var doc = Transformer.getJsDocFromRoute(sails, methodGroup, jsDoc);
+    if (!doc || !doc.customTags) return false;
+    var modelTag = _lodash2['default'].find(doc.customTags, function (tag) {
+      if (isRequest) {
+        return tag.tag === 'request-model';
+      } else {
+        return tag.tag === 'response-model';
+      }
+    });
+    if (!modelTag) return false;
+    return (/^\[(.+)]$/.test(modelTag.value)
+    );
+  },
+
+  getModelIdentityFromRoute: function getModelIdentityFromRoute(sails, methodGroup, jsDoc, isRequest) {
+    var doc = Transformer.getJsDocFromRoute(sails, methodGroup, jsDoc);
     var model = null;
     if (doc) {
       model = Transformer.getModelFromJsDoc(sails, doc, isRequest);
     }
     if (!model) {
-      model = Transformer.getModelFromPath(sails, modelGroup.path);
+      model = Transformer.getModelFromPath(sails, methodGroup.path);
     }
     if (model) {
       return model.identity;
@@ -207,6 +229,18 @@ var Transformer = {
     var identity = Transformer.getModelIdentityFromRoute(sails, methodGroup, jsDoc, isRequest);
     if (identity) {
       return Transformer.generateDefinitionReference(identity);
+    }
+  },
+
+  getDefinitionSchemaFromRoute: function getDefinitionSchemaFromRoute(sails, methodGroup, jsDoc, isRequest) {
+    var reference = Transformer.getDefinitionReferenceFromRoute(sails, methodGroup, jsDoc, isRequest);
+    if (reference) {
+      var schema = { '$ref': reference };
+      var isArray = Transformer.isModelArray(sails, methodGroup, jsDoc, isRequest);
+      if (isArray) {
+        schema = _spec2['default'].wrapInArray(schema);
+      }
+      return schema;
     }
   },
 
@@ -402,9 +436,7 @@ var Transformer = {
           name: modelIdentity,
           'in': 'body',
           required: false,
-          schema: {
-            $ref: Transformer.getDefinitionReferenceFromRoute(sails, methodGroup, jsDoc)
-          }
+          schema: Transformer.getDefinitionSchemaFromRoute(sails, methodGroup, jsDoc, true)
         });
       }
     }
@@ -416,12 +448,12 @@ var Transformer = {
    * http://swagger.io/specification/#responsesObject
    */
   getResponses: function getResponses(sails, methodGroup, jsDoc) {
-    var $ref = Transformer.getDefinitionReferenceFromRoute(sails, methodGroup, jsDoc, false);
+    var schema = Transformer.getDefinitionSchemaFromRoute(sails, methodGroup, jsDoc, false);
     var ok = {
       description: 'The requested resource'
     };
-    if ($ref) {
-      ok.schema = { '$ref': $ref };
+    if (schema) {
+      ok.schema = schema;
     }
     return {
       '200': ok,

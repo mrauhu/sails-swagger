@@ -49,6 +49,10 @@ var typeMap = {
 var Spec = {
   getPropertyType: function getPropertyType(wltype) {
     return types[typeMap[wltype] || wltype];
+  },
+
+  wrapInArray: function wrapInArray(type) {
+    return { type: 'array', items: type };
   }
 };
 

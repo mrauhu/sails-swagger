@@ -286,7 +286,7 @@ var Transformer = {
     if (config.jsdoc.appendExtDocsToDesc && _lodash2['default'].isArray(doc.see) && doc.see.length > 0) {
       desc += '\n[External Document](' + doc.see[0] + ')';
     }
-    if (config.jsdoc.multiLine) {
+    if (config.jsdoc.multiLine && desc) {
       desc = desc.replace(new RegExp('\r\n?|\n', 'g'), '<br>');
     }
     return desc;

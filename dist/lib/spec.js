@@ -2,7 +2,12 @@
  * https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#dataTypeFormat
  */
 
-const types = {
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+var types = {
   integer: {
     type: 'integer',
     format: 'int32'
@@ -34,21 +39,22 @@ const types = {
     type: 'string',
     format: 'date-time'
   }
-}
+};
 
-const typeMap = {
+var typeMap = {
   text: 'string',
   json: 'string'
-}
+};
 
-const Spec = {
-  getPropertyType (wltype) {
-    return types[typeMap[wltype] || wltype]
+var Spec = {
+  getPropertyType: function getPropertyType(wltype) {
+    return types[typeMap[wltype] || wltype];
   },
 
-  wrapInArray (type){
-    return {type: 'array', items: type};
+  wrapInArray: function wrapInArray(type) {
+    return { type: 'array', items: type };
   }
-}
+};
 
-export default Spec
+exports['default'] = Spec;
+module.exports = exports['default'];

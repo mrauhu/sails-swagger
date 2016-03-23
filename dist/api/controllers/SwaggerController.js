@@ -10,7 +10,7 @@ var SwaggerController = {
 
   ui: function ui(req, res) {
     var docUrl = req.protocol + '://' + req.get('Host') + '/swagger/doc';
-    res.redirect(sails.config.swagger.ui.url + '?url=' + encodeURIComponent(docUrl));
+    res.redirect(sails.config.swagger.ui.url + '?doc=' + encodeURIComponent(docUrl));
   }
 };
 
